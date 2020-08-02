@@ -59,26 +59,6 @@ def check_mongo_updates():
         raise RuntimeError("NO UPDATES FOUND SINCE LAST RUN ABORTING RETRAIN.")
 
 
-def get_all_data(db_client):
-    """Utility function to return data cursor"""
-    cursor = (
-        db_client.analytics_db.pipeline_run.find()
-        .sort([("timestamp", pymongo.DESCENDING)])
-        .limit(1)
-    )
-    last_run_timestamp = list(cursor)
-    if len(last_run_timestamp) == 0:
-        # when the pipeline is run for the first time
-        last_run_timestamp = 0
-    else:
-        last_run_timestamp = last_run_timestamp[0]
-    print("Getting data populated after last Pipeline Run:", last_run_timestamp)
-    cursor = db_client.analytics_db.retrain_data.find(
-        {"timestamp": {"$gte": last_run_timestamp}}
-    )
-    return cursor
-
-
 def retrain_model_with_data():
     """Load models, raw data and retrain a KNN based on existing data to find simiarily
     """
@@ -88,7 +68,7 @@ def retrain_model_with_data():
     output_data = []
 
     db_client = pymongo.MongoClient(DB_URI)
-    data_cursor = get_all_data(db_client)
+    data_cursor = db_client.analytics_db.retrain_data.find()
 
     print("FETCHING TRAINING DATA: ..")
     count = 0
@@ -105,12 +85,11 @@ def retrain_model_with_data():
             temp.extend(dc)
             temp.append(doc["timestamp"])
             temp.append(doc["bucket_index_in_raw_query"])
-            temp.extend(doc["raw_query"])
             input_data.append(temp)
             output_data.append(doc["bucket_tag"])
 
     print("DATA FETCHING COMPLETE, PROCEEDING TO RETRAIN")
-
+    print(input_data, output_data)
     knn.fit(input_data, output_data)
 
     print("RETRAINING COMPLETE.")
