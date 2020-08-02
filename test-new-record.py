@@ -18,5 +18,5 @@ def get_documents(k=10):
     return documents
 client = pymongo.MongoClient()
 
-documents = get_documents(1)
+documents = get_documents()
 client.analytics_db.retrain_data.insert_many(documents, ordered=False)
